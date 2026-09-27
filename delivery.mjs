@@ -11,7 +11,7 @@ function element(tag, className, text) {
   return value;
 }
 async function read(id, key) {
-  const response = await fetch(new URL('assets/' + id + '.bin', base), { credentials: 'omit', referrerPolicy: 'no-referrer' });
+  const response = await fetch(new URL('assets/' + id + '.bin', base), { credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store' });
   if (!response.ok) throw new Error('Download failed');
   return decryptAsset(id, await response.arrayBuffer(), key);
 }
@@ -80,7 +80,7 @@ async function start() {
         document.body.append(anchor); anchor.click(); anchor.remove();
         status.textContent = file.name + ' 다운로드를 시작했습니다.';
       } catch {
-        status.textContent = '다운로드하지 못했습니다. 잠시 후 다시 눌러주세요.';
+        status.textContent = '다운로드하지 못했습니다. 페이지를 새로고침한 뒤 다시 눌러주세요.';
       } finally {
         button.disabled = false; button.textContent = label;
       }
