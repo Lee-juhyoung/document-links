@@ -20,6 +20,12 @@ function blobUrl(bytes, type) {
   urls.push(url);
   return url;
 }
+async function prepareDownload(file, key, mime) {
+  const bytes = await read(file.id, key);
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join('');
+  if (bytes.byteLength !== file.bytes || hash !== file.sha256) throw new Error('Download verification failed');
+  return blobUrl(bytes, mime);
+}
 function validate(value) {
   if (value?.version !== 1 || !Array.isArray(value.items) || value.items.length !== 21) throw new Error('Invalid list');
   if (!Array.isArray(value.pdfs) || value.pdfs.length !== 6) throw new Error('Invalid PDF list');
@@ -38,7 +44,23 @@ async function start() {
   status.textContent = 'QR 목록을 여는 중입니다…';
   try {
     const key = await importLinkKey(link.bytes);
+    link.bytes.fill(0);
     const list = validate(JSON.parse(new TextDecoder().decode(await read(link.group, key))));
+    const requestedPdf = new URLSearchParams(location.search).get('pdf');
+    if (requestedPdf !== null) {
+      if (!/^[0-5]$/.test(requestedPdf)) throw new Error('Invalid PDF selection');
+      const file = list.pdfs[Number(requestedPdf)];
+      document.title = file.name;
+      document.querySelector('header .tag').hidden = true;
+      document.querySelector('h1').textContent = file.label + ' QR PDF';
+      status.textContent = 'PDF 다운로드를 준비하고 있습니다…';
+      const download = element('a', 'button', file.label + ' PDF 다운로드');
+      download.href = await prepareDownload(file, key, 'application/pdf');
+      download.download = file.name;
+      status.replaceChildren(element('span', '', '다운로드가 시작되지 않으면 눌러주세요. '), download);
+      download.click();
+      return;
+    }
     const fragment = document.createDocumentFragment();
     for (const item of list.items) {
       const number = String(item.number).padStart(2, '0');
@@ -71,11 +93,8 @@ async function start() {
       const label = button.textContent;
       button.textContent = '다운로드 준비 중…';
       try {
-        const bytes = await read(file.id, key);
-        const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join('');
-        if (bytes.byteLength !== file.bytes || hash !== file.sha256) throw new Error('Download verification failed');
         const anchor = element('a');
-        anchor.href = blobUrl(bytes, mime);
+        anchor.href = await prepareDownload(file, key, mime);
         anchor.download = file.name;
         document.body.append(anchor); anchor.click(); anchor.remove();
         status.textContent = file.name + ' 다운로드를 시작했습니다.';
