@@ -1,11 +1,30 @@
-# Link document viewer
+# 링크·QR 문서 열람
 
-A static document viewer for links and QR codes. The site itself has no public document index.
+전달받은 전체 링크 또는 QR로 문서를 여는 정적 뷰어입니다.
 
-Document bytes, filenames, group titles, and document lists are encrypted with AES-256-GCM. Each group has its own random key. Keys are distributed in URL fragments and are not stored in this repository. The public assets use opaque random identifiers. The viewer decrypts locally in the browser and does not use analytics, external scripts, or browser storage for decrypted files.
+## 사용 방법
 
-The encrypted payloads and the generic viewer source are public. The complete link or QR code grants access to its document group. Anyone who receives a complete link can use and reshare it. The viewer requires HTTPS, except for local testing on localhost.
+- 문서 링크나 QR을 열면 대표 PDF가 표시됩니다.
+- 함께 제공된 서류는 화면의 문서 선택에서 고릅니다.
+- 페이지 이동, 확대, 회전 및 원본 저장을 지원합니다.
+- 관리용 전체 링크에서는 인쇄용 PDF와 QR 자료를 내려받을 수 있습니다.
 
-Search exclusion is defense in depth; confidentiality depends on encryption and keeping complete links private. Do not commit source documents, plaintext manifests, QR images, screenshots, or access links to this repository. Keep account access and changes to the viewer under control.
+## 저장 방식
 
-PDF rendering uses a pinned, locally served Mozilla PDF.js distribution. Its license is included in `vendor/LICENSE`.
+원문, 파일명과 문서 목록은 AES-256-GCM으로 암호화합니다. 이 저장소에는 공통 뷰어와 암호화된 파일만 저장합니다. 열람 키는 전체 링크의 fragment에 포함되며 저장소에 기록하지 않습니다. 검색으로 저장소를 찾아도 문서 내용을 읽을 수 없습니다.
+
+검색 제외 지시도 적용합니다. 문서 보호는 검색 제외가 아니라 암호화와 전체 링크 관리에 의존합니다. 링크를 받은 사람은 문서를 저장하거나 링크를 다시 전달할 수 있습니다.
+
+## 게시 유지
+
+자동 만료나 자동 삭제를 설정하지 않습니다. 저장소와 사이트가 유지되는 동안 기존 링크와 QR을 계속 사용합니다. 문서를 수정할 때 기존 식별자와 열람 키를 보존합니다. 계정·서비스·저장소의 중단이나 삭제까지 보장하는 영구 보관 서비스는 아닙니다.
+
+## 구성
+
+- index.html / app.mjs: 개별 문서 뷰어
+- delivery.html / delivery.mjs: 전체 링크를 받은 사용자의 PDF·QR 내려받기
+- crypto.mjs: 브라우저 복호화
+- assets/: 암호화된 파일
+- vendor/: 고정 버전 Mozilla PDF.js와 라이선스
+
+원본 문서, 열람 키, QR 이미지, PDF 인쇄물, 전체 링크 및 복호화된 목록을 이 저장소에 커밋하지 마세요. 복호화된 문서는 브라우저에서 처리하며 분석 서비스나 외부 스크립트를 사용하지 않습니다.
