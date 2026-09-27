@@ -1,170 +1,207 @@
 import { parseLink, importLinkKey, decryptAsset, validateManifest } from './crypto.mjs';
 import * as pdfjs from './vendor/pdf.mjs';
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.mjs', import.meta.url).href;
-const $ = id => document.getElementById(id);
-let manifest, key, pdf, renderTask, currentFile, downloadUrl, imageUrl;
-let pageNumber = 1, zoom = 1, rotation = 0, loadSequence = 0;
-let renderQueue = Promise.resolve();
-let renderedPage = 0;
-const MiB = bytes => (bytes / 1048576).toFixed(1) + ' MB';
+
+const documentView = document.getElementById('document');
+const message = document.getElementById('message');
+const messageText = document.getElementById('message-text');
+const retry = document.getElementById('retry');
+const pages = [];
+const nearby = new Set();
+let key, pdf, observer, activeRender;
+let rendering = false;
+let layoutWidth = 0;
+let layoutVersion = 0;
 
 async function fetchEncrypted(id) {
-  const response = await fetch('./assets/' + id + '.bin', { credentials: 'omit', referrerPolicy: 'no-referrer' });
+  const response = await fetch('./assets/' + id + '.bin', {
+    credentials: 'omit', referrerPolicy: 'no-referrer',
+  });
   if (!response.ok) throw new Error('Document unavailable');
   return decryptAsset(id, await response.arrayBuffer(), key);
 }
-function status(message, error = false) {
-  $('status').textContent = message;
-  $('status').classList.toggle('error', error);
+
+function releasePage(entry) {
+  if (entry === activeRender?.entry) {
+    activeRender.task.cancel();
+    return;
+  }
+  if (entry.canvas) {
+    entry.canvas.width = 0;
+    entry.canvas.height = 0;
+    entry.canvas.remove();
+    entry.canvas = null;
+  }
+  entry.element.dataset.ready = 'false';
+  entry.renderedWidth = 0;
+  entry.page.cleanup();
 }
-function pageControls() {
-  const count = pdf?.numPages || 1;
-  $('page-number').value = pageNumber;
-  $('page-number').max = count;
-  $('page-number').disabled = !pdf;
-  $('page-count').textContent = '/ ' + count;
-  $('previous').disabled = !pdf || pageNumber <= 1;
-  $('next').disabled = !pdf || pageNumber >= count;
-  for (const id of ['zoom-in', 'zoom-out', 'fit-width', 'rotate']) $(id).disabled = !pdf;
-}
-async function renderPage() {
-  if (!pdf) return;
-  const activePdf = pdf;
-  const requestedPage = pageNumber;
-  const sequence = loadSequence;
-  const page = await activePdf.getPage(requestedPage);
-  if (sequence !== loadSequence || activePdf !== pdf) return;
-  const base = page.getViewport({ scale: 1, rotation: (page.rotate + rotation) % 360 });
-  const stage = $('paper-stage');
-  const availableWidth = Math.max(240, stage.clientWidth - (innerWidth < 680 ? 18 : 46));
-  const viewport = page.getViewport({ scale: (availableWidth / base.width) * zoom, rotation: (page.rotate + rotation) % 360 });
-  const resolution = Math.min(devicePixelRatio || 1, 2, 6500 / Math.max(viewport.width, viewport.height));
-  const canvas = $('pdf-canvas');
-  canvas.width = Math.floor(viewport.width * resolution);
-  canvas.height = Math.floor(viewport.height * resolution);
-  canvas.style.width = viewport.width + 'px';
-  canvas.style.height = viewport.height + 'px';
-  canvas.hidden = false;
-  renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport, transform: resolution === 1 ? null : [resolution, 0, 0, resolution, 0, 0] });
-  await renderTask.promise;
-  renderTask = null;
-  if (sequence !== loadSequence) return;
-  canvas.setAttribute('aria-label', currentFile.name + ', ' + requestedPage + ' / ' + activePdf.numPages + ' 페이지');
-  canvas.dataset.page = String(requestedPage);
-  canvas.dataset.ready = 'true';
-  status(requestedPage + ' / ' + activePdf.numPages + ' 페이지 · ' + Math.round(zoom * 100) + '%');
-  if (renderedPage !== requestedPage) stage.scrollTo(0, 0);
-  renderedPage = requestedPage;
-  pageControls();
-}
-function scheduleRender() {
-  renderQueue = renderQueue.catch(() => {}).then(renderPage).catch(error => {
-    if (error.name !== 'RenderingCancelledException') status('페이지 표시가 지연되고 있습니다. 다시 선택하거나 현재 문서를 저장해 열어주세요.', true);
+
+function showPageError(entry) {
+  entry.failed = true;
+  const box = document.createElement('div');
+  box.className = 'page-error';
+  box.setAttribute('role', 'alert');
+  const text = document.createElement('p');
+  text.textContent = '이 페이지를 표시하지 못했습니다.';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = '다시 시도';
+  button.addEventListener('click', () => {
+    box.remove();
+    entry.failed = false;
+    renderNearby();
   });
-  return renderQueue;
+  box.append(text, button);
+  entry.element.append(box);
 }
-async function openFile(id) {
-  const sequence = ++loadSequence;
-  const file = manifest.files.find(item => item.id === id);
-  if (!file) return;
-  $('download').disabled = true;
-  $('pdf-canvas').hidden = true;
-  $('pdf-canvas').dataset.ready = 'false';
-  $('image-page').hidden = true;
-  $('file-info').textContent = (file.pages ? file.pages + '쪽 · ' : '') + MiB(file.bytes);
-  status('문서를 여는 중입니다…');
+
+function nextPage() {
+  const center = innerHeight / 2;
+  return [...nearby]
+    .filter(entry => !entry.failed && entry.renderedWidth !== layoutWidth)
+    .sort((a, b) => {
+      const ar = a.element.getBoundingClientRect();
+      const br = b.element.getBoundingClientRect();
+      const distance = rect => rect.bottom < center ? center - rect.bottom : Math.max(0, rect.top - center);
+      return distance(ar) - distance(br) || a.number - b.number;
+    })[0];
+}
+
+async function renderNearby() {
+  if (rendering || !layoutWidth) return;
+  rendering = true;
   try {
-  const oldPdf = pdf; pdf = null;
-  pageControls();
-  if (renderTask) renderTask.cancel();
-  await renderQueue.catch(() => {});
-  if (oldPdf) await oldPdf.loadingTask.destroy();
-  if (sequence !== loadSequence) return;
-  if (downloadUrl) URL.revokeObjectURL(downloadUrl);
-  if (imageUrl) URL.revokeObjectURL(imageUrl);
-  downloadUrl = null; imageUrl = null;
-    const bytes = await fetchEncrypted(file.id);
-    if (sequence !== loadSequence) return;
-    const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
-    if (sequence !== loadSequence) return;
-    if (digest !== file.sha256 || bytes.byteLength !== file.bytes) throw new Error('Document integrity failed');
-    currentFile = file;
-    downloadUrl = URL.createObjectURL(new Blob([bytes], { type: file.mime }));
-    $('download').disabled = false;
-    pageNumber = 1; zoom = 1; rotation = 0; renderedPage = 0;
-    if (file.mime === 'application/pdf') {
-      const loading = pdfjs.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false, enableXfa: false, cMapUrl: new URL('./vendor/cmaps/', import.meta.url).href, cMapPacked: true, standardFontDataUrl: new URL('./vendor/standard_fonts/', import.meta.url).href, wasmUrl: new URL('./vendor/wasm/', import.meta.url).href });
-      const nextPdf = await loading.promise;
-      if (sequence !== loadSequence) { await nextPdf.loadingTask.destroy(); return; }
-      pdf = nextPdf;
-      await scheduleRender();
-    } else {
-      imageUrl = URL.createObjectURL(new Blob([bytes], { type: file.mime }));
-      $('image-page').src = imageUrl;
-      $('image-page').alt = file.name;
-      await $('image-page').decode();
-      if (sequence !== loadSequence) return;
-      $('image-page').hidden = false;
-      pageControls();
-      status('이미지 문서 · ' + MiB(file.bytes));
+    let entry;
+    while ((entry = nextPage())) {
+      const version = layoutVersion;
+      const width = layoutWidth;
+      releasePage(entry);
+      const viewport = entry.page.getViewport({ scale: width / entry.base.width });
+      const resolution = Math.min(
+        devicePixelRatio || 1, 2,
+        Math.sqrt(5_000_000 / (viewport.width * viewport.height)),
+        8192 / Math.max(viewport.width, viewport.height),
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.floor(viewport.width * resolution));
+      canvas.height = Math.max(1, Math.floor(viewport.height * resolution));
+      canvas.setAttribute('role', 'img');
+      canvas.setAttribute('aria-label', entry.number + ' / ' + pdf.numPages + ' 페이지');
+      canvas.hidden = true;
+      entry.canvas = canvas;
+      entry.element.append(canvas);
+      try {
+        const task = entry.page.render({
+          canvasContext: canvas.getContext('2d'), viewport,
+          transform: resolution === 1 ? null : [resolution, 0, 0, resolution, 0, 0],
+        });
+        activeRender = { entry, task };
+        await task.promise;
+        activeRender = null;
+        if (version !== layoutVersion || !nearby.has(entry)) {
+          releasePage(entry);
+          continue;
+        }
+        canvas.hidden = false;
+        entry.renderedWidth = width;
+        entry.element.dataset.ready = 'true';
+      } catch (error) {
+        activeRender = null;
+        releasePage(entry);
+        if (error.name !== 'RenderingCancelledException') showPageError(entry);
+      }
     }
-  } catch {
-    if (sequence !== loadSequence) return;
-    $('download').disabled = !downloadUrl;
-    status('문서를 열지 못했습니다. 인터넷 연결을 확인한 뒤 문서를 다시 선택해 주세요.', true);
+  } finally {
+    rendering = false;
   }
 }
+
+function watchPages() {
+  observer?.disconnect();
+  nearby.clear();
+  observer = new IntersectionObserver(changes => {
+    for (const change of changes) {
+      const entry = pages[Number(change.target.dataset.page) - 1];
+      if (change.isIntersecting) {
+        nearby.add(entry);
+      } else {
+        nearby.delete(entry);
+        releasePage(entry);
+      }
+    }
+    renderNearby();
+  }, { rootMargin: innerHeight + 'px 0px' });
+  for (const entry of pages) observer.observe(entry.element);
+}
+
 async function boot() {
   let link;
   try { link = parseLink(location.hash); } catch { return; }
   if (!link) return;
-  $('gate-title').textContent = '문서를 확인하고 있습니다';
-  $('gate-description').textContent = '잠시만 기다려 주세요.';
+  messageText.textContent = '문서를 여는 중입니다…';
   try {
     if (!crypto.subtle) throw new Error('Secure browser required');
     key = await importLinkKey(link.bytes);
     link.bytes.fill(0);
-    manifest = validateManifest(JSON.parse(new TextDecoder().decode(await fetchEncrypted(link.group))));
-    $('group-title').textContent = manifest.title;
-    $('group-summary').textContent = '대표 문서부터 표시합니다. 이 묶음의 문서는 ' + manifest.files.length + '개입니다.';
-    const sorted = [...manifest.files].sort((a, b) => Number(b.id === manifest.representative) - Number(a.id === manifest.representative));
-    for (const file of sorted) {
-      const option = document.createElement('option');
-      option.value = file.id;
-      option.textContent = (file.id === manifest.representative ? '대표 · ' : '') + file.name;
-      $('document-select').append(option);
+    const manifest = validateManifest(JSON.parse(new TextDecoder().decode(await fetchEncrypted(link.group))));
+    const file = manifest.files.find(item => item.id === manifest.representative);
+    if (!file || file.mime !== 'application/pdf') throw new Error('PDF unavailable');
+    const bytes = await fetchEncrypted(file.id);
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
+    if (digest !== file.sha256 || bytes.byteLength !== file.bytes) throw new Error('Document integrity failed');
+    const loading = pdfjs.getDocument({
+      data: new Uint8Array(bytes), isEvalSupported: false, enableXfa: false,
+      cMapUrl: new URL('./vendor/cmaps/', import.meta.url).href, cMapPacked: true,
+      standardFontDataUrl: new URL('./vendor/standard_fonts/', import.meta.url).href,
+      wasmUrl: new URL('./vendor/wasm/', import.meta.url).href,
+    });
+    pdf = await loading.promise;
+    const fragment = document.createDocumentFragment();
+    // Only page dimensions are read up front. Canvas memory is limited to nearby pages.
+    for (let number = 1; number <= pdf.numPages; number++) {
+      const page = await pdf.getPage(number);
+      const base = page.getViewport({ scale: 1 });
+      const element = document.createElement('section');
+      element.className = 'pdf-page';
+      element.dataset.page = String(number);
+      element.dataset.ready = 'false';
+      element.style.aspectRatio = base.width + ' / ' + base.height;
+      element.setAttribute('aria-label', number + ' / ' + pdf.numPages + ' 페이지');
+      pages.push({ number, page, base, element, canvas: null, renderedWidth: 0, failed: false });
+      fragment.append(element);
     }
-    $('gate').hidden = true;
-    $('workspace').hidden = false;
-    await openFile(manifest.representative);
+    document.title = file.name;
+    documentView.setAttribute('aria-label', file.name);
+    documentView.append(fragment);
+    documentView.hidden = false;
+    message.hidden = true;
+    layoutWidth = documentView.clientWidth;
+    watchPages();
+    let resizeTimer;
+    addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const width = documentView.clientWidth;
+        if (width !== layoutWidth) {
+          layoutWidth = width;
+          layoutVersion++;
+          for (const entry of pages) releasePage(entry);
+        }
+        watchPages();
+      }, 160);
+    });
   } catch {
-    $('workspace').hidden = true;
-    $('gate').hidden = false;
-    $('gate-title').textContent = '문서를 열 수 없습니다';
-    $('gate-description').textContent = '전달받은 전체 링크인지 확인해 주세요. 연결이 끊겼다면 다시 시도해 주세요.';
-    $('retry').hidden = false;
+    observer?.disconnect();
+    documentView.hidden = true;
+    message.hidden = false;
+    messageText.textContent = '문서를 열 수 없습니다. 전체 링크와 인터넷 연결을 확인해 주세요.';
+    retry.hidden = false;
+    if (pdf) await pdf.destroy();
   }
 }
-$('retry').addEventListener('click', () => location.reload());
-$('document-select').addEventListener('change', event => openFile(event.target.value));
-$('previous').addEventListener('click', () => { if (pdf && pageNumber > 1) { pageNumber--; scheduleRender(); } });
-$('next').addEventListener('click', () => { if (pdf && pageNumber < pdf.numPages) { pageNumber++; scheduleRender(); } });
-function jumpToPage() {
-  if (!pdf) return;
-  pageNumber = Math.min(pdf.numPages, Math.max(1, Number.parseInt($('page-number').value, 10) || 1));
-  scheduleRender();
-}
-$('page-number').addEventListener('change', jumpToPage);
-$('page-number').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); jumpToPage(); } });
-$('zoom-in').addEventListener('click', () => { zoom = Math.min(3, zoom + .25); scheduleRender(); });
-$('zoom-out').addEventListener('click', () => { zoom = Math.max(.5, zoom - .25); scheduleRender(); });
-$('fit-width').addEventListener('click', () => { zoom = 1; scheduleRender(); });
-$('rotate').addEventListener('click', () => { rotation = (rotation + 90) % 360; scheduleRender(); });
-$('download').addEventListener('click', () => {
-  if (!downloadUrl || !currentFile) return;
-  const anchor = document.createElement('a'); anchor.href = downloadUrl; anchor.download = currentFile.name; anchor.rel = 'noreferrer'; anchor.click();
-});
-let resizeTimer;
-addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(scheduleRender, 160); });
+
+retry.addEventListener('click', () => location.reload());
 addEventListener('hashchange', () => location.reload());
 boot();

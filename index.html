@@ -6,48 +6,15 @@
   <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self'; worker-src 'self'; img-src 'self' blob: data:; font-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>문서 보기</title>
-  <link rel="stylesheet" href="./style.css">
-  <script type="module" src="./app.mjs"></script>
+  <title>PDF</title>
+  <link rel="stylesheet" href="./style.css?v=20260928-scroll-1">
+  <script type="module" src="./app.mjs?v=20260928-scroll-1"></script>
 </head>
 <body>
-  <header class="header">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">D</span><span>문서 보기</span></div>
-    <span class="header-note">링크 · QR 전용</span>
-  </header>
-  <main>
-    <section id="gate" class="gate" aria-live="polite">
-      <div class="gate-symbol" aria-hidden="true">↗</div>
-      <p class="eyebrow">DOCUMENT VIEWER</p>
-      <h1 id="gate-title">전달받은 링크로 열어주세요</h1>
-      <p id="gate-description">전체 링크를 누르거나 QR코드를 스캔하면 문서가 열립니다.</p>
-      <button id="retry" class="primary" hidden>다시 시도</button>
-    </section>
-    <section id="workspace" class="workspace" hidden>
-      <div class="document-heading">
-        <div><p class="eyebrow">장비 문서</p><h1 id="group-title"></h1><p id="group-summary"></p></div>
-        <button id="download" class="download-button" disabled>현재 문서 저장 ↓</button>
-      </div>
-      <div class="document-picker">
-        <label for="document-select">문서 선택</label>
-        <select id="document-select"></select>
-        <span id="file-info"></span>
-      </div>
-      <div class="toolbar" id="toolbar" aria-label="문서 보기 도구">
-        <div class="page-controls">
-          <button id="previous" aria-label="이전 페이지">‹</button>
-          <label class="sr-only" for="page-number">페이지</label><input id="page-number" type="number" min="1" value="1" inputmode="numeric">
-          <span id="page-count">/ 1</span><button id="next" aria-label="다음 페이지">›</button>
-        </div>
-        <div class="view-controls">
-          <button id="zoom-out" aria-label="축소">−</button><button id="fit-width">화면에 맞춤</button><button id="zoom-in" aria-label="확대">＋</button><button id="rotate" aria-label="시계 방향으로 회전">회전 ↻</button>
-        </div>
-      </div>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
-      <div id="paper-stage" class="paper-stage"><canvas id="pdf-canvas" aria-label="PDF 페이지" hidden></canvas><img id="image-page" alt="문서 이미지" hidden></div>
-      <p class="viewer-note">화면의 회전과 확대는 원본 파일을 바꾸지 않습니다.</p>
-    </section>
-  </main>
-  <footer>전달받은 링크와 QR코드를 필요한 사람에게만 공유해 주세요.</footer>
+  <section id="message" class="message" role="status" aria-live="polite">
+    <p id="message-text">전달받은 전체 링크로 열어주세요.</p>
+    <button id="retry" type="button" hidden>다시 시도</button>
+  </section>
+  <main id="document" aria-label="PDF 문서" hidden></main>
 </body>
 </html>
