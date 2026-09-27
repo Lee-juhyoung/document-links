@@ -1,0 +1,8 @@
+* text=auto eol=lf
+assets/*.bin -text -diff
+*.bcmap -text -diff
+*.wasm -text -diff
+*.icc -text -diff
+*.ttf -text -diff
+*.otf -text -diff
+*.pfb -text -diff

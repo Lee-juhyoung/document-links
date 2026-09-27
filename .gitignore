@@ -1,0 +1,8 @@
+*.pdf
+*.PDF
+*.jpg
+*.png
+*.zip
+*.json
+.private/
+output/
