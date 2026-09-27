@@ -29,7 +29,8 @@ async function prepareDownload(file, key, mime) {
 function validate(value) {
   if (value?.version !== 1 || !Array.isArray(value.items) || value.items.length !== 21) throw new Error('Invalid list');
   if (!Array.isArray(value.pdfs) || value.pdfs.length !== 6) throw new Error('Invalid PDF list');
-  for (const a of [value.archive, ...value.pdfs]) {
+  if (value.imageArchives !== undefined && (!Array.isArray(value.imageArchives) || value.imageArchives.length !== 6)) throw new Error('Invalid image archives');
+  for (const a of [value.archive, ...value.pdfs, ...(value.imageArchives || [])]) {
     if (!/^[a-f0-9]{32}$/.test(a?.id) || !/^[a-f0-9]{64}$/.test(a?.sha256) || !Number.isSafeInteger(a.bytes) || a.bytes < 1 || a.bytes > 20_000_000 || typeof a.name !== 'string') throw new Error('Invalid download');
   }
   for (const [i, item] of value.items.entries()) {
@@ -46,16 +47,23 @@ async function start() {
     const key = await importLinkKey(link.bytes);
     link.bytes.fill(0);
     const list = validate(JSON.parse(new TextDecoder().decode(await read(link.group, key))));
-    const requestedPdf = new URLSearchParams(location.search).get('pdf');
-    if (requestedPdf !== null) {
-      if (!/^[0-5]$/.test(requestedPdf)) throw new Error('Invalid PDF selection');
-      const file = list.pdfs[Number(requestedPdf)];
+    const params = new URLSearchParams(location.search);
+    const requestedPdf = params.get('pdf');
+    const requestedImages = params.get('images');
+    if (requestedPdf !== null && requestedImages !== null) throw new Error('Choose one download');
+    if (requestedPdf !== null || requestedImages !== null) {
+      const selection = requestedPdf ?? requestedImages;
+      if (!/^[0-5]$/.test(selection)) throw new Error('Invalid download selection');
+      const isPdf = requestedPdf !== null;
+      const file = (isPdf ? list.pdfs : list.imageArchives)?.[Number(selection)];
+      if (!file) throw new Error('Download unavailable');
+      const kind = isPdf ? 'PDF' : '사진 ZIP';
       document.title = file.name;
       document.querySelector('header .tag').hidden = true;
-      document.querySelector('h1').textContent = file.label + ' QR PDF';
-      status.textContent = 'PDF 다운로드를 준비하고 있습니다…';
-      const download = element('a', 'button', file.label + ' PDF 다운로드');
-      download.href = await prepareDownload(file, key, 'application/pdf');
+      document.querySelector('h1').textContent = file.label + ' QR ' + kind;
+      status.textContent = kind + ' 다운로드를 준비하고 있습니다…';
+      const download = element('a', 'button', file.label + ' ' + kind + ' 다운로드');
+      download.href = await prepareDownload(file, key, isPdf ? 'application/pdf' : 'application/zip');
       download.download = file.name;
       status.replaceChildren(element('span', '', '다운로드가 시작되지 않으면 눌러주세요. '), download);
       download.click();
