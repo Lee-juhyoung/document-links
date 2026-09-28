@@ -23,6 +23,13 @@ export function validateManifest(value) {
   if (value?.version !== 1 || typeof value.title !== 'string' || !Array.isArray(value.files) || !value.files.length || value.files.length > 100) throw new Error('Invalid document list');
   for (const file of value.files) {
     if (!/^[a-f0-9]{32}$/.test(file.id) || typeof file.name !== 'string' || !['application/pdf', 'image/jpeg'].includes(file.mime) || !/^[a-f0-9]{64}$/.test(file.sha256) || !Number.isSafeInteger(file.bytes) || file.bytes <= 0 || file.bytes > 100_000_000) throw new Error('Invalid document entry');
+    if (Object.hasOwn(file, 'pageRotations')) {
+      const rotations = file.pageRotations;
+      if (!rotations || typeof rotations !== 'object' || Object.getPrototypeOf(rotations) !== Object.prototype) throw new Error('Invalid page rotations');
+      for (const [page, rotation] of Object.entries(rotations)) {
+        if (!/^[1-9]\d*$/.test(page) || !Number.isSafeInteger(Number(page)) || ![0, 90, 180, 270].includes(rotation)) throw new Error('Invalid page rotation');
+      }
+    }
   }
   if (!value.files.some(file => file.id === value.representative)) throw new Error('Missing representative document');
   return value;

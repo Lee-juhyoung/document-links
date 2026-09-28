@@ -1,4 +1,4 @@
-import { parseLink, importLinkKey, decryptAsset, validateManifest } from './crypto.mjs';
+import { parseLink, importLinkKey, decryptAsset, validateManifest } from './crypto.mjs?v=20260928-rotation-1';
 import * as pdfjs from './vendor/pdf.mjs';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.mjs', import.meta.url).href;
@@ -14,9 +14,10 @@ let rendering = false;
 let layoutWidth = 0;
 let layoutVersion = 0;
 
-async function fetchEncrypted(id) {
+async function fetchEncrypted(id, manifest = false) {
   const response = await fetch('./assets/' + id + '.bin', {
     credentials: 'omit', referrerPolicy: 'no-referrer',
+    ...(manifest ? { cache: 'no-store' } : {}),
   });
   if (!response.ok) throw new Error('Document unavailable');
   return decryptAsset(id, await response.arrayBuffer(), key);
@@ -78,7 +79,7 @@ async function renderNearby() {
       const version = layoutVersion;
       const width = layoutWidth;
       releasePage(entry);
-      const viewport = entry.page.getViewport({ scale: width / entry.base.width });
+      const viewport = entry.page.getViewport({ scale: width / entry.base.width, rotation: entry.rotation });
       const resolution = Math.min(
         devicePixelRatio || 1, 2,
         Math.sqrt(5_000_000 / (viewport.width * viewport.height)),
@@ -145,7 +146,7 @@ async function boot() {
     if (!crypto.subtle) throw new Error('Secure browser required');
     key = await importLinkKey(link.bytes);
     link.bytes.fill(0);
-    const manifest = validateManifest(JSON.parse(new TextDecoder().decode(await fetchEncrypted(link.group))));
+    const manifest = validateManifest(JSON.parse(new TextDecoder().decode(await fetchEncrypted(link.group, true))));
     const file = manifest.files.find(item => item.id === manifest.representative);
     if (!file || file.mime !== 'application/pdf') throw new Error('PDF unavailable');
     const bytes = await fetchEncrypted(file.id);
@@ -158,18 +159,21 @@ async function boot() {
       wasmUrl: new URL('./vendor/wasm/', import.meta.url).href,
     });
     pdf = await loading.promise;
+    const rotations = file.pageRotations || {};
+    if (Object.keys(rotations).some(number => Number(number) > pdf.numPages)) throw new Error('Page rotation outside document');
     const fragment = document.createDocumentFragment();
     // Only page dimensions are read up front. Canvas memory is limited to nearby pages.
     for (let number = 1; number <= pdf.numPages; number++) {
       const page = await pdf.getPage(number);
-      const base = page.getViewport({ scale: 1 });
+      const rotation = (page.rotate + (rotations[number] ?? 0)) % 360;
+      const base = page.getViewport({ scale: 1, rotation });
       const element = document.createElement('section');
       element.className = 'pdf-page';
       element.dataset.page = String(number);
       element.dataset.ready = 'false';
       element.style.aspectRatio = base.width + ' / ' + base.height;
       element.setAttribute('aria-label', number + ' / ' + pdf.numPages + ' 페이지');
-      pages.push({ number, page, base, element, canvas: null, renderedWidth: 0, failed: false });
+      pages.push({ number, page, base, rotation, element, canvas: null, renderedWidth: 0, failed: false });
       fragment.append(element);
     }
     document.title = file.name;
