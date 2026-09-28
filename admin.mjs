@@ -110,7 +110,7 @@ async function start() {
     navigation.textContent = '';
     for (const page of value.pages) {
       const link = document.createElement('a');
-      link.href = '?vessel=' + encodeURIComponent(page.id) + location.hash;
+      link.href = '?v=20260928-3&vessel=' + encodeURIComponent(page.id) + location.hash;
       link.textContent = page.title;
       link.setAttribute('aria-label', page.title + ' 페이지');
       const count = document.createElement('small'); count.textContent = 'QR ' + page.count + '개'; link.append(count);
