@@ -45,8 +45,8 @@ export function validateAdmin(value) {
     }
     if (page.count !== count || !count) throw new Error('Invalid page count');
     archive(page.archive,count);
-    if (page.groupIds.length === 1) {
-      const original = value.groups.find(g=>g.id===page.groupIds[0]).archive;
+    const original = value.groups.find(g=>g.id===page.groupIds[0]).archive;
+    if (page.groupIds.length === 1 && page.archive.id === original.id) {
       if (['id','name','bytes','sha256','count'].some(k=>page.archive[k]!==original[k])) throw new Error('Invalid page archive');
     } else {
       if (archives.has(page.archive.id)) throw new Error('Duplicate page archive');

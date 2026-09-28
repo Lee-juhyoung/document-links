@@ -1,5 +1,5 @@
 import { parseLink, importLinkKey, decryptAsset } from './crypto.mjs';
-import { validateAdmin, decodePng, verifyBytes } from './admin-data.mjs?v=20260928-1';
+import { validateAdmin, decodePng, verifyBytes } from './admin-data.mjs?v=20260929-1';
 
 const status = document.querySelector('#status');
 const downloadStatus = document.querySelector('#download-status');
@@ -114,7 +114,7 @@ async function start() {
     navigation.textContent = '';
     for (const page of value.pages) {
       const link = document.createElement('a');
-      link.href = '?v=20260928-5&vessel=' + encodeURIComponent(page.id) + location.hash;
+      link.href = '?v=20260929-1&vessel=' + encodeURIComponent(page.id) + location.hash;
       link.textContent = page.title;
       link.setAttribute('aria-label', page.title + ' 페이지');
       const count = document.createElement('small'); count.textContent = 'QR ' + page.count + '개'; link.append(count);
