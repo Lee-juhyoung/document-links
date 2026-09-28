@@ -43,6 +43,8 @@ button:focus-visible,a:focus-visible{outline:3px solid #d38b24;outline-offset:4p
 .qr-card h3{font-size:16px;line-height:1.5;margin:9px 0 15px;word-break:keep-all}
 .download-png{font-size:14px;width:100%;max-width:230px;margin-top:auto}
 .empty{margin:8px 0;color:#71877f;font-size:14px;text-align:center}
+.chat-entry{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 20px;padding:16px 18px;border:1px solid #cadfd5;background:#fff;border-radius:10px;font-size:14px}
+.chat-entry p{font-size:12px;line-height:1.6;color:#647e71;margin:5px 0 0}.chat-entry a{color:#146953;font-weight:700;white-space:nowrap;text-underline-offset:4px;min-height:44px;display:flex;align-items:center}
 #download-status{font-size:14px;line-height:1.7;color:#4e6e61;min-height:24px;margin:18px 4px}
 [hidden]{display:none!important}
 @media(max-width:700px){#page-nav{grid-template-columns:repeat(3,minmax(0,1fr))}}
