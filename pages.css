@@ -1,0 +1,75 @@
+:root {
+  font-family: "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  color: #f5f5f5;
+  background: #525659;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scrollbar-gutter: stable; }
+body { margin: 0; min-height: 100vh; }
+#document {
+  width: calc(100% - 24px);
+  max-width: 1040px;
+  margin: 12px auto;
+}
+.pdf-page {
+  position: relative;
+  width: 100%;
+  height: 0;
+  margin: 0 0 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 4px #0005;
+}
+.pdf-page img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.message {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.message p { margin: 0 0 16px; }
+button, .native-pdf {
+  border: 1px solid #aeb3b6;
+  border-radius: 4px;
+  padding: 10px 16px;
+  color: #252525;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.native-pdf { display: inline-block; margin-top: 12px; text-decoration: none; }
+button:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+.page-error {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 16px;
+  color: #404040;
+  font-size: 14px;
+}
+.page-error p { margin: 0; }
+@media (max-width: 680px) {
+  html { scrollbar-gutter: auto; }
+  #document { width: 100%; margin: 0; }
+  .pdf-page { margin-bottom: 6px; box-shadow: none; }
+}

@@ -20,7 +20,7 @@ export async function decryptAsset(id, bytes, key) {
   }, key, data.slice(18));
 }
 export function validateManifest(value) {
-  if (value?.version !== 1 || typeof value.title !== 'string' || !Array.isArray(value.files) || !value.files.length || value.files.length > 100) throw new Error('Invalid document list');
+  if (!value || value.version !== 1 || typeof value.title !== 'string' || !Array.isArray(value.files) || !value.files.length || value.files.length > 100) throw new Error('Invalid document list');
   for (const file of value.files) {
     if (!/^[a-f0-9]{32}$/.test(file.id) || typeof file.name !== 'string' || !['application/pdf', 'image/jpeg'].includes(file.mime) || !/^[a-f0-9]{64}$/.test(file.sha256) || !Number.isSafeInteger(file.bytes) || file.bytes <= 0 || file.bytes > 100_000_000) throw new Error('Invalid document entry');
     if (Object.prototype.hasOwnProperty.call(file, 'pageRotations')) {
@@ -28,6 +28,14 @@ export function validateManifest(value) {
       if (!rotations || typeof rotations !== 'object' || Object.getPrototypeOf(rotations) !== Object.prototype) throw new Error('Invalid page rotations');
       for (const [page, rotation] of Object.entries(rotations)) {
         if (!/^[1-9]\d*$/.test(page) || !Number.isSafeInteger(Number(page)) || ![0, 90, 180, 270].includes(rotation)) throw new Error('Invalid page rotation');
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(file, 'previewPages')) {
+      if (file.mime !== 'application/pdf' || !Array.isArray(file.previewPages) || !file.previewPages.length || file.previewPages.length > 2000) throw new Error('Invalid page previews');
+      const ids = new Set();
+      for (const page of file.previewPages) {
+        if (!page || !/^[a-f0-9]{32}$/.test(page.id) || ids.has(page.id) || page.mime !== 'image/jpeg' || !/^[a-f0-9]{64}$/.test(page.sha256) || !Number.isSafeInteger(page.bytes) || page.bytes <= 0 || page.bytes > 20_000_000 || !Number.isSafeInteger(page.width) || !Number.isSafeInteger(page.height) || page.width < 1 || page.height < 1 || page.width > 6000 || page.height > 6000 || page.width * page.height > 20_000_000) throw new Error('Invalid page preview');
+        ids.add(page.id);
       }
     }
   }
