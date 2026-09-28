@@ -37,6 +37,7 @@ function validate(value) {
     const url = new URL(item.url);
     if (item.number !== i + 1 || url.origin !== base.origin || url.pathname !== base.pathname || url.search || !parseLink(url.hash)) throw new Error('Invalid document link');
     if (typeof item.title !== 'string' || typeof item.name !== 'string' || !Number.isInteger(item.files) || item.files < 1 || !/^[A-Za-z0-9+/]+={0,2}$/.test(item.png) || item.png.length > 1_000_000) throw new Error('Invalid QR');
+    if (item.pngName !== undefined && (typeof item.pngName !== 'string' || item.pngName.length > 200 || !item.pngName.endsWith('.png') || /[<>:"/\\|?*\x00-\x1f]/.test(item.pngName))) throw new Error('Invalid QR filename');
   }
   return value;
 }
@@ -84,7 +85,7 @@ async function start() {
       const open = element('a', 'button', '문서 열기 ↗');
       open.href = item.url; open.target = '_blank'; open.rel = 'noopener noreferrer';
       const save = element('a', 'button secondary', 'QR 저장 ↓');
-      save.href = image.src; save.download = number + '.png';
+      save.href = image.src; save.download = item.pngName || number + '.png';
       actions.append(open, save);
       card.append(top, element('h2', '', item.title), image, element('p', 'filename', item.name), actions);
       fragment.append(card);

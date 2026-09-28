@@ -7,13 +7,14 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self'; worker-src 'self'; img-src 'self' blob: data:; font-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>PDF</title>
-  <link rel="stylesheet" href="./style.css?v=20260928-scroll-1">
-  <script type="module" src="./app.mjs?v=20260928-rotation-1"></script>
+  <link rel="stylesheet" href="./style.css?v=20260928-compat-1">
+  <script type="module" src="./app.mjs?v=20260928-compat-1"></script>
 </head>
 <body>
   <section id="message" class="message" role="status" aria-live="polite">
     <p id="message-text">전달받은 전체 링크로 열어주세요.</p>
     <button id="retry" type="button" hidden>다시 시도</button>
+    <a id="open-pdf" class="native-pdf" hidden>PDF 내려받기</a>
   </section>
   <main id="document" aria-label="PDF 문서" hidden></main>
 </body>

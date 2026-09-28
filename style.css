@@ -39,7 +39,7 @@ body { margin: 0; min-height: 100vh; }
   line-height: 1.7;
 }
 .message p { margin: 0 0 16px; }
-button {
+button, .native-pdf {
   border: 1px solid #aeb3b6;
   border-radius: 4px;
   padding: 10px 16px;
@@ -48,6 +48,7 @@ button {
   font: inherit;
   cursor: pointer;
 }
+.native-pdf { display: inline-block; margin-top: 12px; text-decoration: none; }
 button:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
 .page-error {
   position: absolute;

@@ -1,15 +1,14 @@
-import { parseLink, importLinkKey, decryptAsset, validateManifest } from './crypto.mjs?v=20260928-rotation-1';
-import * as pdfjs from './vendor/pdf.mjs';
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.mjs', import.meta.url).href;
+import { parseLink, importLinkKey, decryptAsset, validateManifest } from './crypto.mjs?v=20260928-compat-1';
+let pdfjs;
 
 const documentView = document.getElementById('document');
 const message = document.getElementById('message');
 const messageText = document.getElementById('message-text');
 const retry = document.getElementById('retry');
+const nativePdf = document.getElementById('open-pdf');
 const pages = [];
 const nearby = new Set();
-let key, pdf, observer, activeRender;
+let key, pdf, observer, activeRender, loading, verifiedFile, verifiedBytes, nativePdfUrl;
 let rendering = false;
 let layoutWidth = 0;
 let layoutVersion = 0;
@@ -21,6 +20,25 @@ async function fetchEncrypted(id, manifest = false) {
   });
   if (!response.ok) throw new Error('Document unavailable');
   return decryptAsset(id, await response.arrayBuffer(), key);
+}
+
+async function verifiedPdfBytes(file) {
+  const bytes = await fetchEncrypted(file.id);
+  const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
+  if (digest !== file.sha256 || bytes.byteLength !== file.bytes) throw new Error('Document integrity failed');
+  return bytes;
+}
+
+async function prepareNativePdf() {
+  if (!verifiedFile) return;
+  try {
+    const bytes = verifiedBytes?.byteLength ? verifiedBytes : await verifiedPdfBytes(verifiedFile);
+    nativePdfUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    nativePdf.href = nativePdfUrl;
+    nativePdf.download = verifiedFile.name;
+    nativePdf.hidden = false;
+    messageText.textContent = '이 브라우저에서 미리보기를 표시하지 못했습니다. PDF 파일을 내려받아 열어주세요.';
+  } catch { /* Keep the retry option when the original cannot be fetched. */ }
 }
 
 function releasePage(entry) {
@@ -149,16 +167,24 @@ async function boot() {
     const manifest = validateManifest(JSON.parse(new TextDecoder().decode(await fetchEncrypted(link.group, true))));
     const file = manifest.files.find(item => item.id === manifest.representative);
     if (!file || file.mime !== 'application/pdf') throw new Error('PDF unavailable');
-    const bytes = await fetchEncrypted(file.id);
-    const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
-    if (digest !== file.sha256 || bytes.byteLength !== file.bytes) throw new Error('Document integrity failed');
-    const loading = pdfjs.getDocument({
+    const bytes = await verifiedPdfBytes(file);
+    verifiedFile = file;
+    verifiedBytes = bytes;
+    pdfjs = await import('./vendor/pdf-legacy.mjs?v=6.3.289');
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker-legacy.mjs?v=6.3.289', import.meta.url).href;
+    loading = pdfjs.getDocument({
       data: new Uint8Array(bytes), isEvalSupported: false, enableXfa: false,
       cMapUrl: new URL('./vendor/cmaps/', import.meta.url).href, cMapPacked: true,
       standardFontDataUrl: new URL('./vendor/standard_fonts/', import.meta.url).href,
       wasmUrl: new URL('./vendor/wasm/', import.meta.url).href,
     });
-    pdf = await loading.promise;
+    let loadingTimer;
+    try {
+      pdf = await Promise.race([loading.promise, new Promise((_, reject) => {
+        loadingTimer = setTimeout(() => reject(new Error('PDF loading timeout')), 30000);
+      })]);
+    } finally { clearTimeout(loadingTimer); }
+    verifiedBytes = null;
     const rotations = file.pageRotations || {};
     if (Object.keys(rotations).some(number => Number(number) > pdf.numPages)) throw new Error('Page rotation outside document');
     const fragment = document.createDocumentFragment();
@@ -202,10 +228,12 @@ async function boot() {
     message.hidden = false;
     messageText.textContent = '문서를 열 수 없습니다. 전체 링크와 인터넷 연결을 확인해 주세요.';
     retry.hidden = false;
-    if (pdf) await pdf.destroy();
+    try { await loading?.destroy(); } catch { /* A failed worker may already be gone. */ }
+    await prepareNativePdf();
   }
 }
 
 retry.addEventListener('click', () => location.reload());
 addEventListener('hashchange', () => location.reload());
+addEventListener('pagehide', () => { if (nativePdfUrl) URL.revokeObjectURL(nativePdfUrl); });
 boot();
