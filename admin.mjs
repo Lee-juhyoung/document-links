@@ -25,7 +25,11 @@ function clearUrls() {
 }
 async function fetchAsset(id, limit) {
   const response = await fetch('./assets/' + id + '.bin', {credentials:'omit',referrerPolicy:'no-referrer',cache:'no-store'});
-  if (!response.ok || Number(response.headers.get('content-length')) > limit) throw new Error('Unavailable');
+  if (!response.ok) throw new Error('Unavailable');
+  // Content-Length describes the compressed transfer when a CDN uses gzip.
+  // The limit below applies to the decoded ciphertext returned by Fetch.
+  const encoding = response.headers.get('content-encoding');
+  if ((!encoding || encoding === 'identity') && Number(response.headers.get('content-length')) > limit) throw new Error('Too large');
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength > limit) throw new Error('Too large');
   return new Uint8Array(await decryptAsset(id, bytes, key));
