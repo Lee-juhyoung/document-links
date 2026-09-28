@@ -100,6 +100,10 @@ async function start() {
     status.textContent = 'QR을 불러오고 있습니다…';
     key = await importLinkKey(link.bytes); link.bytes.fill(0);
     const value = validateAdmin(JSON.parse(new TextDecoder().decode(await fetchAsset(link.group, 15000000))));
+    if (/^[a-f0-9]{32}$/.test(value.chatLinkId || '')) {
+      const params=new URLSearchParams(location.hash.slice(1));params.set('g',value.chatLinkId);
+      document.querySelector('#chat-link').href='./chat.html#'+params.toString();document.querySelector('#chat-link').hidden=false;
+    }
     const urls = new Map();
     for (const group of value.groups) for (const item of group.items) {
       const bytes = await decodePng(item);
@@ -110,7 +114,7 @@ async function start() {
     navigation.textContent = '';
     for (const page of value.pages) {
       const link = document.createElement('a');
-      link.href = '?v=20260928-4&vessel=' + encodeURIComponent(page.id) + location.hash;
+      link.href = '?v=20260928-5&vessel=' + encodeURIComponent(page.id) + location.hash;
       link.textContent = page.title;
       link.setAttribute('aria-label', page.title + ' 페이지');
       const count = document.createElement('small'); count.textContent = 'QR ' + page.count + '개'; link.append(count);
