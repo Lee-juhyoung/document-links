@@ -75,20 +75,27 @@ function attachArchive(button, file, key) {
   });
 }
 async function legacyDownload(list, key) {
-  // Keep previously shared downloads available with their original scope.
+  // Keep image downloads available and explain retired PDF links explicitly.
   const params = new URLSearchParams(location.search);
   const pdf = params.get('pdf'), images = params.get('images');
   if (pdf === null && images === null) return false;
   if (pdf !== null && images !== null) throw new Error('Choose one download');
   const selection = pdf ?? images;
   if (!/^[0-5]$/.test(selection)) throw new Error('Invalid download selection');
-  const isPdf = pdf !== null;
-  const file = (isPdf ? list.pdfs : list.imageArchives)?.[Number(selection)];
+  if (pdf !== null) {
+    if (list.retiredLegacyPdfs !== true || !Array.isArray(list.pdfs) || list.pdfs.length !== 0) throw new Error('Invalid PDF retirement state');
+    const current = new URL(location.href); current.search = '';
+    const anchor = element('a','button','현재 배포용 페이지 열기');
+    anchor.href = current.href;
+    status.replaceChildren(element('span','','이전 QR 모음 PDF는 삭제되었습니다. 현재 배포용 페이지를 이용해 주세요. '),anchor);
+    return true;
+  }
+  const file = list.imageArchives?.[Number(selection)];
   if (!file) throw new Error('Download unavailable');
   document.title = file.name;
-  document.querySelector('h1').textContent = file.label + ' QR ' + (isPdf ? 'PDF' : 'ZIP');
+  document.querySelector('h1').textContent = file.label + ' QR ZIP';
   const anchor = element('a','button','다운로드');
-  anchor.href = await prepareDownload(file,key,isPdf ? 'application/pdf' : 'application/zip');
+  anchor.href = await prepareDownload(file,key,'application/zip');
   anchor.download = file.name;
   status.replaceChildren(element('span','','기존 장비 QR 모음입니다. '),anchor);
   anchor.click(); return true;
