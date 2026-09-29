@@ -7,14 +7,16 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>QR 배포</title>
-  <link rel="stylesheet" href="./delivery.css?v=20260929-distribution-2">
-  <script type="module" src="./delivery.mjs?v=20260929-distribution-2"></script>
+  <link rel="stylesheet" href="./delivery.css?v=20260929-distribution-3">
+  <script type="module" src="./delivery.mjs?v=20260929-distribution-3"></script>
 </head>
 <body>
   <header><span class="tag">배포용</span><h1>장비 문서 · QR</h1><p id="status" role="status">전달받은 전체 링크로 열어주세요.</p></header>
   <section id="actions" hidden>
     <div class="actions"><button id="download-all">전체 QR 다운로드</button><button class="secondary" id="print">인쇄 · PDF 저장</button></div>
     <p id="download-status" role="status"></p>
+    <div class="search-bar"><label for="qr-search">전체 자료 검색</label><div class="search-input"><input id="qr-search" type="search" placeholder="전체 선박의 장비명·번호·문서명" autocomplete="off" aria-describedby="search-result"><button id="clear-search" class="secondary" type="button">지우기</button></div></div>
+    <p id="search-result" role="status" aria-live="polite" hidden></p>
     <nav id="vessels" aria-label="선박 바로가기"></nav>
   </section>
   <main id="library" hidden></main>

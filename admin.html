@@ -7,8 +7,8 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>QR 관리</title>
-  <link rel="stylesheet" href="./admin.css?v=20260929-3">
-  <script type="module" src="./admin.mjs?v=20260929-3"></script>
+  <link rel="stylesheet" href="./admin.css?v=20260929-4">
+  <script type="module" src="./admin.mjs?v=20260929-4"></script>
 </head>
 <body>
   <main>
@@ -32,6 +32,8 @@
           <button id="collapse-all" class="text-button">모두 접기</button>
         </div>
       </div>
+      <div class="search-bar"><label for="qr-search">이 선박에서 검색</label><div class="search-input"><input id="qr-search" type="search" placeholder="현재 선박의 장비명·번호·문서명" autocomplete="off" aria-describedby="search-result"><button id="clear-search" class="secondary" type="button">지우기</button></div></div>
+      <p id="search-result" role="status" aria-live="polite" hidden></p>
       <div id="groups"></div>
       <p id="download-status" role="status" aria-live="polite"></p>
     </section>

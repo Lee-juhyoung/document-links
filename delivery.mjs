@@ -6,6 +6,27 @@ const downloadStatus = document.querySelector('#download-status');
 const base = new URL('./', location.href);
 const urls = new Set();
 const archiveUrls = new Map();
+const search = document.querySelector('#qr-search');
+const searchResult = document.querySelector('#search-result');
+const normalizeSearch = value => value.normalize('NFKC').toLocaleLowerCase('ko').replace(/\s+/g, '');
+function applySearch() {
+  const query = normalizeSearch(search.value);
+  let count = 0;
+  for (const section of document.querySelectorAll('#library .vessel')) {
+    let matches = 0;
+    for (const card of section.querySelectorAll('.qr-card')) {
+      card.hidden = !!query && !card.dataset.search.includes(query);
+      if (!card.hidden) matches++;
+    }
+    section.hidden = !!query && matches === 0;
+    for (const jump of document.querySelectorAll('#vessels button')) if (jump.dataset.section === section.id) jump.hidden = section.hidden;
+    count += matches;
+  }
+  searchResult.hidden = !query;
+  searchResult.textContent = count ? '검색 결과 QR ' + count + '개' : '검색 결과가 없습니다. 다른 장비명이나 번호로 검색해 주세요.';
+}
+search.addEventListener('input', applySearch);
+document.querySelector('#clear-search').addEventListener('click', () => { search.value = ''; applySearch(); search.focus(); });
 function element(tag, className, text) {
   const value = document.createElement(tag);
   if (className) value.className = className;
@@ -99,11 +120,13 @@ async function start() {
       const download = element('button','secondary',page.title + ' QR 다운로드');
       attachArchive(download,page.archive,key); heading.append(title,download); section.append(heading);
       const jump = element('button','secondary',page.title);
+      jump.dataset.section = section.id;
       jump.addEventListener('click',()=>section.scrollIntoView({behavior:'smooth',block:'start'})); navigation.append(jump);
       const cards = element('div','cards');
       for (const group of library.groups.filter(group=>page.groupIds.includes(group.id))) for (const item of group.items) {
         const card = element('article','qr-card');
         const number = numbers.get(item.id);
+        card.dataset.search = normalizeSearch([page.title, group.title, item.title, item.name, number ? 'QR ' + String(number).padStart(2,'0') : ''].join(' '));
         if (number) card.append(element('span','number','QR ' + String(number).padStart(2,'0')));
         const image = element('img'); image.src = images.get(item.sha256); image.alt = item.title + ' QR'; image.width = 220; image.height = 220;
         const actions = element('div','card-actions');
@@ -119,6 +142,7 @@ async function start() {
     }
     document.querySelector('#library').replaceChildren(fragment);
     document.querySelector('#library').hidden = false;
+    applySearch();
     document.querySelector('#actions').hidden = false;
     document.querySelector('#footnote').hidden = false;
     status.textContent = '전체 QR ' + library.uniqueCount + '개 · 선박별로 다운로드하거나 문서를 열람하세요.';

@@ -13,6 +13,32 @@ const objectUrls = new Set();
 const archiveUrls = new Map();
 let key;
 let busy = false;
+const search = document.querySelector('#qr-search');
+const searchResult = document.querySelector('#search-result');
+const savedExpanded = new Map();
+const normalizeSearch = value => value.normalize('NFKC').toLocaleLowerCase('ko').replace(/\s+/g, '');
+function applySearch() {
+  const query = normalizeSearch(search.value);
+  let count = 0;
+  for (const section of groups.querySelectorAll('.group')) {
+    const toggle = section.querySelector('.group-toggle');
+    if (query && !savedExpanded.has(toggle)) savedExpanded.set(toggle, toggle.getAttribute('aria-expanded') === 'true');
+    let matches = 0;
+    for (const card of section.querySelectorAll('.qr-card')) {
+      card.hidden = !!query && !card.dataset.search.includes(query);
+      if (!card.hidden) matches++;
+    }
+    section.hidden = !!query && matches === 0;
+    if (query && matches) setExpanded(toggle, true);
+    if (!query && savedExpanded.has(toggle)) setExpanded(toggle, savedExpanded.get(toggle));
+    count += matches;
+  }
+  if (!query) savedExpanded.clear();
+  searchResult.hidden = !query;
+  searchResult.textContent = count ? '검색 결과 QR ' + count + '개' : '검색 결과가 없습니다. 다른 장비명이나 번호로 검색해 주세요.';
+}
+search.addEventListener('input', applySearch);
+document.querySelector('#clear-search').addEventListener('click', () => { search.value = ''; applySearch(); search.focus(); });
 
 function blobUrl(bytes, mime) {
   const url = URL.createObjectURL(new Blob([bytes], {type:mime}));
@@ -81,6 +107,7 @@ function renderGroup(group, urls) {
     const cards = document.createElement('div'); cards.className = 'cards';
     for (const item of group.items) {
       const card = document.createElement('article'); card.className = 'qr-card';
+      card.dataset.search = normalizeSearch([group.title, item.title, item.name].join(' '));
       const img = document.createElement('img'); img.src = urls.get(item.sha256); img.alt = item.title + ' QR'; img.width = 1944; img.height = 1944;
       const name = document.createElement('h3'); name.textContent = item.title;
       const link = document.createElement('a'); link.className = 'download-png'; link.href = img.src; link.download = item.name; link.textContent = 'PNG 다운로드';
@@ -125,7 +152,7 @@ async function start() {
     navigation.textContent = '';
     for (const page of value.pages) {
       const link = document.createElement('a');
-      link.href = '?v=20260929-3&vessel=' + encodeURIComponent(page.id) + location.hash;
+      link.href = '?v=20260929-4&vessel=' + encodeURIComponent(page.id) + location.hash;
       link.textContent = page.title;
       link.setAttribute('aria-label', page.title + ' 페이지');
       const count = document.createElement('small'); count.textContent = 'QR ' + page.count + '개'; link.append(count);
@@ -139,7 +166,10 @@ async function start() {
     pageButton.textContent = current.title + ' 전체 다운로드';
     allButton.textContent = '모든 QR ' + value.uniqueCount + '개 다운로드';
     allButton.onclick = () => downloadArchive(value.archive, allButton);
+    savedExpanded.clear();
     for (const group of value.groups) if (current.groupIds.includes(group.id)) groups.append(renderGroup(group, urls));
+    search.placeholder = current.title + ' 장비명·번호·문서명';
+    applySearch();
     status.textContent = '선박을 선택하고 QR 이미지를 내려받으세요.';
     library.hidden = false;
   } catch {
