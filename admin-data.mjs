@@ -11,8 +11,19 @@ function size(value, max) { return Number.isSafeInteger(value) && value > 0 && v
 function archive(value, count) {
   if (!value || !ID.test(value.id) || !filename(value.name, '.zip') || !size(value.bytes, 30000000) || !SHA.test(value.sha256) || value.count !== count) throw new Error('Invalid archive');
 }
-export function validateAdmin(value) {
+function documentUrl(value, id, siteUrl) {
+  if (typeof value !== 'string' || value.length > 2048 || !siteUrl) throw new Error('Invalid document link');
+  const url = new URL(value), base = new URL('.', siteUrl);
+  if (!['https:', 'http:'].includes(url.protocol) || url.origin !== base.origin || url.pathname !== base.pathname || url.username || url.password || url.search) throw new Error('Invalid document location');
+  const parts = new URLSearchParams(url.hash.slice(1));
+  if ([...parts].length !== 2 || parts.getAll('g').length !== 1 || parts.getAll('k').length !== 1 || parts.get('g') !== id || !/^[A-Za-z0-9_-]{43}$/.test(parts.get('k') || '')) throw new Error('Invalid document fragment');
+  const key = parts.get('k');
+  const bytes = Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/') + '='), c=>c.charCodeAt(0));
+  if (bytes.length !== 32 || btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'') !== key) throw new Error('Invalid document key');
+}
+export function validateAdmin(value, siteUrl = globalThis.location?.href) {
   if (!value || value.version !== 1 || !text(value.scope, 50) || !Array.isArray(value.groups) || !value.groups.length || value.groups.length > 20) throw new Error('Invalid list');
+  if (value.documentLinksVersion !== undefined && value.documentLinksVersion !== 1) throw new Error('Invalid document links version');
   const groups = new Set(), archives = new Set(), itemIds = new Set();
   let total = 0;
   for (const group of value.groups) {
@@ -21,6 +32,8 @@ export function validateAdmin(value) {
     const ids = new Set(), names = new Set();
     for (const item of group.items) {
       if (!item || !ID.test(item.id) || ids.has(item.id) || names.has(item.name) || !text(item.title, 90) || !filename(item.name, '.png') || !size(item.bytes, 5000000) || !SHA.test(item.sha256) || typeof item.data !== 'string' || item.data.length > 7000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(item.data)) throw new Error('Invalid QR');
+      // Older encrypted manifests remain usable during a cached deployment transition.
+      if (value.documentLinksVersion === 1 || item.documentUrl !== undefined) documentUrl(item.documentUrl, item.id, siteUrl);
       ids.add(item.id); itemIds.add(item.id); names.add(item.name); total++;
     }
     if (group.items.length) {

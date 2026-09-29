@@ -6,14 +6,18 @@
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>QR 목록</title>
-  <link rel="stylesheet" href="./delivery.css">
-  <script type="module" src="./delivery.mjs?v=20260928-centered-1"></script>
+  <title>QR 배포</title>
+  <link rel="stylesheet" href="./delivery.css?v=20260929-distribution-1">
+  <script type="module" src="./delivery.mjs?v=20260929-distribution-1"></script>
 </head>
 <body>
-  <header><span class="tag">문서 공유</span><h1>QR 목록</h1><p id="status" role="status">전달받은 전체 링크로 열어주세요.</p></header>
-  <section id="actions" hidden><p>각 QR을 찍으면 대표 PDF가 열립니다.</p><h2>인쇄용 PDF 받기</h2><div class="actions" id="pdf-downloads"></div><h2>전체 자료</h2><div class="actions"><button id="download-all">PDF · QR 전체 ZIP 받기 ↓</button><button id="print">이 화면 인쇄</button></div><p class="note">이 목록 링크에는 모든 문서의 열람 권한이 있습니다. 개별 문서를 전달할 때는 아래의 해당 QR 또는 문서 링크를 공유하세요.</p></section>
-  <main id="cards"></main>
-  <footer id="footnote" hidden>자동 만료 없이 사용하는 QR입니다. 저장소와 사이트가 유지되는 동안 같은 주소로 열립니다.<br>구조검토서 2개는 압축파일 안팎의 내용이 같지만 보안 프로그램으로 보호되어 있어 목록에서 제외했습니다.</footer>
+  <header><span class="tag">배포용</span><h1>장비 문서 · QR</h1><p id="status" role="status">전달받은 전체 링크로 열어주세요.</p></header>
+  <section id="actions" hidden>
+    <div class="actions"><button id="download-all">전체 QR 다운로드</button><button class="secondary" id="print">인쇄 · PDF 저장</button></div>
+    <p id="download-status" role="status"></p>
+    <nav id="vessels" aria-label="선박 바로가기"></nav>
+  </section>
+  <main id="library" hidden></main>
+  <footer id="footnote" hidden>이 페이지와 QR 링크를 전달하면 문서를 열람할 수 있습니다.</footer>
 </body>
 </html>

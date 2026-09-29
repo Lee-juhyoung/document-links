@@ -1,5 +1,5 @@
 import { parseLink, importLinkKey, decryptAsset } from './crypto.mjs';
-import { validateAdmin, decodePng, verifyBytes } from './admin-data.mjs?v=20260929-1';
+import { validateAdmin, decodePng, verifyBytes } from './admin-data.mjs?v=20260929-2';
 
 const status = document.querySelector('#status');
 const downloadStatus = document.querySelector('#download-status');
@@ -85,7 +85,14 @@ function renderGroup(group, urls) {
       const name = document.createElement('h3'); name.textContent = item.title;
       const link = document.createElement('a'); link.className = 'download-png'; link.href = img.src; link.download = item.name; link.textContent = 'PNG 다운로드';
       link.setAttribute('aria-label', item.title + ' PNG 다운로드');
-      card.append(img, name, link); cards.append(card);
+      const actions = document.createElement('div'); actions.className = 'qr-actions'; actions.append(link);
+      if (item.documentUrl) {
+        const documentLink = document.createElement('a'); documentLink.className = 'document-link';
+        documentLink.href = item.documentUrl; documentLink.target = '_blank'; documentLink.rel = 'noopener noreferrer';
+        documentLink.textContent = '문서 열람'; documentLink.setAttribute('aria-label', item.title + ' 문서 열람 (새 창)');
+        actions.append(documentLink);
+      }
+      card.append(img, name, actions); cards.append(card);
     }
     body.append(cards);
   }
@@ -114,7 +121,7 @@ async function start() {
     navigation.textContent = '';
     for (const page of value.pages) {
       const link = document.createElement('a');
-      link.href = '?v=20260929-1&vessel=' + encodeURIComponent(page.id) + location.hash;
+      link.href = '?v=20260929-2&vessel=' + encodeURIComponent(page.id) + location.hash;
       link.textContent = page.title;
       link.setAttribute('aria-label', page.title + ' 페이지');
       const count = document.createElement('small'); count.textContent = 'QR ' + page.count + '개'; link.append(count);
