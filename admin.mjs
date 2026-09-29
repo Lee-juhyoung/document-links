@@ -38,7 +38,7 @@ function applySearch() {
   searchResult.textContent = count ? '검색 결과 QR ' + count + '개' : '검색 결과가 없습니다. 다른 장비명이나 번호로 검색해 주세요.';
 }
 search.addEventListener('input', applySearch);
-document.querySelector('#clear-search').addEventListener('click', () => { search.value = ''; applySearch(); search.focus(); });
+document.querySelector('#clear-search').addEventListener('click', () => { search.blur(); search.value = ''; applySearch(); });
 
 function blobUrl(bytes, mime) {
   const url = URL.createObjectURL(new Blob([bytes], {type:mime}));
@@ -152,7 +152,7 @@ async function start() {
     navigation.textContent = '';
     for (const page of value.pages) {
       const link = document.createElement('a');
-      link.href = '?v=20260929-4&vessel=' + encodeURIComponent(page.id) + location.hash;
+      link.href = '?v=20260929-5&vessel=' + encodeURIComponent(page.id) + location.hash;
       link.textContent = page.title;
       link.setAttribute('aria-label', page.title + ' 페이지');
       const count = document.createElement('small'); count.textContent = 'QR ' + page.count + '개'; link.append(count);

@@ -26,7 +26,7 @@ function applySearch() {
   searchResult.textContent = count ? '검색 결과 QR ' + count + '개' : '검색 결과가 없습니다. 다른 장비명이나 번호로 검색해 주세요.';
 }
 search.addEventListener('input', applySearch);
-document.querySelector('#clear-search').addEventListener('click', () => { search.value = ''; applySearch(); search.focus(); });
+document.querySelector('#clear-search').addEventListener('click', () => { search.blur(); search.value = ''; applySearch(); });
 function element(tag, className, text) {
   const value = document.createElement(tag);
   if (className) value.className = className;
