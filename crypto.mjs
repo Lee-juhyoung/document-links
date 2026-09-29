@@ -20,6 +20,11 @@ export async function decryptAsset(id, bytes, key) {
   }, key, data.slice(18));
 }
 export function validateManifest(value) {
+  if (value && Object.prototype.hasOwnProperty.call(value, 'status')) {
+    const fields = ['version', 'status', 'title', 'representative', 'files'];
+    if (Object.getPrototypeOf(value) !== Object.prototype || Object.keys(value).length !== fields.length || !fields.every(field => Object.prototype.hasOwnProperty.call(value, field)) || value.version !== 1 || value.status !== 'pending' || typeof value.title !== 'string' || !value.title.trim() || value.title.length > 200 || value.representative !== null || !Array.isArray(value.files) || value.files.length !== 0) throw new Error('Invalid pending document');
+    return value;
+  }
   if (!value || value.version !== 1 || typeof value.title !== 'string' || !Array.isArray(value.files) || !value.files.length || value.files.length > 100) throw new Error('Invalid document list');
   for (const file of value.files) {
     if (!/^[a-f0-9]{32}$/.test(file.id) || typeof file.name !== 'string' || !['application/pdf', 'image/jpeg'].includes(file.mime) || !/^[a-f0-9]{64}$/.test(file.sha256) || !Number.isSafeInteger(file.bytes) || file.bytes <= 0 || file.bytes > 100_000_000) throw new Error('Invalid document entry');

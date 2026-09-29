@@ -1,5 +1,5 @@
 import { parseLink, importLinkKey, decryptAsset } from './crypto.mjs';
-import { validateAdmin, decodePng, verifyBytes } from './admin-data.mjs?v=20260929-2';
+import { validateAdmin, decodePng, verifyBytes } from './admin-data.mjs?v=20260929-3';
 
 const status = document.querySelector('#status');
 const downloadStatus = document.querySelector('#download-status');
@@ -92,7 +92,11 @@ function renderGroup(group, urls) {
         documentLink.textContent = '문서 열람'; documentLink.setAttribute('aria-label', item.title + ' 문서 열람 (새 창)');
         actions.append(documentLink);
       }
-      card.append(img, name, actions); cards.append(card);
+      card.append(img, name);
+      if (item.status === 'pending') {
+        const note = document.createElement('p'); note.className = 'pending-note'; note.textContent = '서류 등록 예정'; card.append(note);
+      }
+      card.append(actions); cards.append(card);
     }
     body.append(cards);
   }
@@ -121,7 +125,7 @@ async function start() {
     navigation.textContent = '';
     for (const page of value.pages) {
       const link = document.createElement('a');
-      link.href = '?v=20260929-2&vessel=' + encodeURIComponent(page.id) + location.hash;
+      link.href = '?v=20260929-3&vessel=' + encodeURIComponent(page.id) + location.hash;
       link.textContent = page.title;
       link.setAttribute('aria-label', page.title + ' 페이지');
       const count = document.createElement('small'); count.textContent = 'QR ' + page.count + '개'; link.append(count);

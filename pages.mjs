@@ -1,4 +1,4 @@
-import { parseLink, importLinkKey, decryptAsset, validateManifest } from './crypto.mjs?v=20260928-pages-1';
+import { parseLink, importLinkKey, decryptAsset, validateManifest } from './crypto.mjs?v=20260929-pending-1';
 
 const documentView = document.getElementById('document');
 const message = document.getElementById('message');
@@ -162,6 +162,24 @@ async function boot() {
     if (!crypto.subtle) throw new Error('Secure browser required');
     key = await importLinkKey(link.bytes); link.bytes.fill(0);
     const manifest = validateManifest(JSON.parse(new TextDecoder().decode(await fetchEncrypted(link.group,true))));
+    if (manifest.status === 'pending') {
+      document.title = manifest.title;
+      const title = document.createElement('h1');
+      title.className = 'pending-title';
+      title.textContent = manifest.title;
+      const status = document.createElement('p');
+      status.className = 'pending-status';
+      status.textContent = '서류 등록 예정';
+      message.classList.add('pending-message');
+      message.insertBefore(title, messageText);
+      message.insertBefore(status, messageText);
+      messageText.textContent = '서류가 등록되면 이 QR에서 확인할 수 있습니다.';
+      retry.hidden = true;
+      nativePdf.hidden = true;
+      documentView.hidden = true;
+      message.hidden = false;
+      return;
+    }
     const file = manifest.files.find(item => item.id === manifest.representative);
     if (!file || file.mime !== 'application/pdf') throw new Error('PDF unavailable');
     originalFile = file;

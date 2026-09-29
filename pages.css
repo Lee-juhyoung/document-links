@@ -42,6 +42,24 @@ body { margin: 0; min-height: 100vh; }
   line-height: 1.7;
 }
 .message p { margin: 0 0 16px; }
+.pending-message { background: #f4f6f8; color: #253341; }
+.pending-title {
+  max-width: 640px;
+  margin: 0 0 24px;
+  font-size: clamp(22px, 5vw, 30px);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+.pending-message .pending-status {
+  padding: 6px 16px;
+  border-radius: 24px;
+  background: #e2eaf3;
+  color: #294b70;
+  font-size: 16px;
+  font-weight: 600;
+}
+.pending-message #message-text { max-width: 440px; }
 button, .native-pdf {
   border: 1px solid #aeb3b6;
   border-radius: 4px;

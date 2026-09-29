@@ -34,6 +34,7 @@ export function validateAdmin(value, siteUrl = globalThis.location?.href) {
       if (!item || !ID.test(item.id) || ids.has(item.id) || names.has(item.name) || !text(item.title, 90) || !filename(item.name, '.png') || !size(item.bytes, 5000000) || !SHA.test(item.sha256) || typeof item.data !== 'string' || item.data.length > 7000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(item.data)) throw new Error('Invalid QR');
       // Older encrypted manifests remain usable during a cached deployment transition.
       if (value.documentLinksVersion === 1 || item.documentUrl !== undefined) documentUrl(item.documentUrl, item.id, siteUrl);
+      if (item.status !== undefined && item.status !== 'pending') throw new Error('Invalid document status');
       ids.add(item.id); itemIds.add(item.id); names.add(item.name); total++;
     }
     if (group.items.length) {

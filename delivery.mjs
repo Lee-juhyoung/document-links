@@ -1,5 +1,5 @@
 import { parseLink, importLinkKey, decryptAsset } from './crypto.mjs';
-import { validateAdmin, decodePng, verifyBytes } from './admin-data.mjs?v=20260929-2';
+import { validateAdmin, decodePng, verifyBytes } from './admin-data.mjs?v=20260929-3';
 
 const status = document.querySelector('#status');
 const downloadStatus = document.querySelector('#download-status');
@@ -111,7 +111,9 @@ async function start() {
         save.href = image.src; save.download = item.name; save.setAttribute('aria-label',item.title + ' PNG 다운로드');
         const open = element('a','button','문서 열람');
         open.href = item.documentUrl; open.target = '_blank'; open.rel = 'noopener noreferrer'; open.setAttribute('aria-label',item.title + ' 문서 열람');
-        actions.append(save,open); card.append(element('h3','',item.title),image,actions); cards.append(card);
+        actions.append(save,open); card.append(element('h3','',item.title),image);
+        if (item.status === 'pending') card.append(element('p','pending-note','서류 등록 예정'));
+        card.append(actions); cards.append(card);
       }
       section.append(cards); fragment.append(section);
     }
