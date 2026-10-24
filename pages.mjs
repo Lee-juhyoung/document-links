@@ -9,7 +9,7 @@ const pages = [];
 let key, originalFile, observer, nativePdfUrl, cleanupWatch;
 let active = 0;
 
-async function fetchEncrypted(id, manifest, signal) {
+async function fetchEncrypted(id, manifest, signal, version) {
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const cancel = () => { if (controller) controller.abort(); };
   if (signal) signal.addEventListener('abort', cancel);
@@ -17,7 +17,8 @@ async function fetchEncrypted(id, manifest, signal) {
   try {
     return await Promise.race([
       (async () => {
-        const response = await fetch('./assets/' + id + '.bin', {
+        const path = './assets/' + id + '.bin' + (version ? '?v=' + encodeURIComponent(version) : '');
+        const response = await fetch(path, {
           credentials: 'omit', referrerPolicy: 'no-referrer', cache: manifest ? 'no-store' : 'default',
           signal: controller ? controller.signal : undefined,
         });
@@ -35,7 +36,7 @@ async function fetchEncrypted(id, manifest, signal) {
 }
 
 async function verifiedBytes(file, signal) {
-  const bytes = await fetchEncrypted(file.id, false, signal);
+  const bytes = await fetchEncrypted(file.id, false, signal, file.sha256);
   const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
   if (digest !== file.sha256 || bytes.byteLength !== file.bytes) throw new Error('Document integrity failed');
   return bytes;
