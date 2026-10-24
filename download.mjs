@@ -7,7 +7,7 @@ async function start() {
   const link = parseLink(location.hash);
   if (!link) return;
   try {
-    status.textContent = 'PNG 다운로드를 준비하고 있습니다…';
+    status.textContent = '파일 다운로드를 준비하고 있습니다…';
     const key = await importLinkKey(link.bytes);
     link.bytes.fill(0);
     const response = await fetch('./assets/' + link.group + '.bin', {
@@ -15,16 +15,20 @@ async function start() {
     });
     if (!response.ok) throw new Error('Unavailable');
     const value = JSON.parse(new TextDecoder().decode(await decryptAsset(link.group, await response.arrayBuffer(), key)));
-    if (value?.version !== 1 || value.mime !== 'image/png' || typeof value.name !== 'string' ||
-        !value.name.endsWith('.png') || value.name.length > 120 || /[<>:"/\\|?*\x00-\x1f]/.test(value.name) ||
-        !Number.isSafeInteger(value.bytes) || value.bytes < 8 || value.bytes > 5_000_000 ||
+    const format = value?.mime === 'image/png'
+      ? { extension: '.png', maxBytes: 5_000_000, signature: [137, 80, 78, 71, 13, 10, 26, 10] }
+      : value?.mime === 'application/zip'
+        ? { extension: '.zip', maxBytes: 20_000_000, signature: [80, 75, 3, 4] }
+        : null;
+    if (value?.version !== 1 || !format || typeof value.name !== 'string' ||
+        !value.name.endsWith(format.extension) || value.name.length > 120 || /[<>:"/\\|?*\x00-\x1f]/.test(value.name) ||
+        !Number.isSafeInteger(value.bytes) || value.bytes < format.signature.length || value.bytes > format.maxBytes ||
         !/^[a-f0-9]{64}$/.test(value.sha256) || typeof value.data !== 'string' ||
-        value.data.length > 7_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(value.data)) throw new Error('Invalid file');
+        value.data.length > 4 * Math.ceil(format.maxBytes / 3) || !/^[A-Za-z0-9+/]+={0,2}$/.test(value.data)) throw new Error('Invalid file');
     const bytes = Uint8Array.from(atob(value.data), c => c.charCodeAt(0));
-    const signature = [137, 80, 78, 71, 13, 10, 26, 10];
     const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join('');
-    if (bytes.length !== value.bytes || digest !== value.sha256 || !signature.every((b, i) => bytes[i] === b)) throw new Error('Integrity check failed');
-    objectUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+    if (bytes.length !== value.bytes || digest !== value.sha256 || !format.signature.every((b, i) => bytes[i] === b)) throw new Error('Integrity check failed');
+    objectUrl = URL.createObjectURL(new Blob([bytes], { type: value.mime }));
     document.title = value.name;
     document.querySelector('h1').textContent = value.name;
     anchor.href = objectUrl;
